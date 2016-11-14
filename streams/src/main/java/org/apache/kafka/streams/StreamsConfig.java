@@ -133,6 +133,10 @@ public class StreamsConfig extends AbstractConfig {
     public static final String ROCKSDB_CONFIG_SETTER_CLASS_CONFIG = "rocksdb.config.setter";
     public static final String ROCKSDB_CONFIG_SETTER_CLASS_DOC = "A Rocks DB config setter class that implements the <code>RocksDBConfigSetter</code> interface";
 
+    /** <code>rocksdb.ttl.sec</code> */
+    public static final String ROCKSDB_TTL_SEC_CONFIG = "rocksdb.ttl.sec";
+    public static final String ROCKSDB_TTL_SEC_DOC = "A Rocks DB TTL value in seconds";
+
     /** <code>windowstore.changelog.additional.retention.ms</code> */
     public static final String WINDOW_STORE_CHANGE_LOG_ADDITIONAL_RETENTION_MS_CONFIG = "windowstore.changelog.additional.retention.ms";
     public static final String WINDOW_STORE_CHANGE_LOG_ADDITIONAL_RETENTION_MS_DOC = "Added to a windows maintainMs to ensure data is not deleted from the log prematurely. Allows for clock drift. Default is 1 day";
@@ -247,6 +251,11 @@ public class StreamsConfig extends AbstractConfig {
                                         null,
                                         Importance.LOW,
                                         ROCKSDB_CONFIG_SETTER_CLASS_DOC)
+                                .define(ROCKSDB_TTL_SEC_CONFIG,
+                                        Type.INT,
+                                        null,
+                                        Importance.LOW,
+                                        ROCKSDB_TTL_SEC_DOC)
                                 .define(WINDOW_STORE_CHANGE_LOG_ADDITIONAL_RETENTION_MS_CONFIG,
                                         Type.LONG,
                                         24 * 60 * 60 * 1000,

@@ -155,7 +155,11 @@ public class RocksDBStore<K, V> implements KeyValueStore<K, V> {
                 valueSerde == null ? (Serde<V>) context.valueSerde() : valueSerde);
 
         this.dbDir = new File(new File(context.stateDir(), parentDir), this.name);
-        this.db = openDB(this.dbDir, this.options, TTL_SECONDS);
+        int ttlSeconds = TTL_SECONDS;
+        if (configs.get(StreamsConfig.ROCKSDB_TTL_SEC_CONFIG) != null)
+            ttlSeconds = (int) configs.get(StreamsConfig.ROCKSDB_TTL_SEC_CONFIG);
+
+        this.db = openDB(this.dbDir, this.options, ttlSeconds);
     }
 
     public void init(ProcessorContext context, StateStore root) {
@@ -188,9 +192,11 @@ public class RocksDBStore<K, V> implements KeyValueStore<K, V> {
                 dir.getParentFile().mkdirs();
                 return RocksDB.open(options, dir.getAbsolutePath());
             } else {
-                throw new UnsupportedOperationException("Change log is not supported for store " + this.name + " since it is TTL based.");
+
+                //throw new UnsupportedOperationException("Change log is not supported for store " + this.name + " since it is TTL based.");
                 // TODO: support TTL with change log?
-                // return TtlDB.open(options, dir.toString(), ttl, false);
+                log.warn("Using TTL ({}seconds) with store {}.", ttl, this.name);
+                return TtlDB.open(options, dir.getAbsolutePath(), ttl, false);
             }
         } catch (RocksDBException e) {
             throw new ProcessorStateException("Error opening store " + this.name + " at location " + dir.toString(), e);
