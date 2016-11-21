@@ -133,6 +133,10 @@ public class StreamsConfig extends AbstractConfig {
     public static final String ROCKSDB_CONFIG_SETTER_CLASS_CONFIG = "rocksdb.config.setter";
     public static final String ROCKSDB_CONFIG_SETTER_CLASS_DOC = "A Rocks DB config setter class that implements the <code>RocksDBConfigSetter</code> interface";
 
+    /** <code>rocksdb.ttl.sec</code> */
+    public static final String ROCKSDB_TTL_SEC_CONFIG = "rocksdb.ttl.sec";
+    public static final String ROCKSDB_TTL_SEC_DOC = "A Rocks DB TTL value in seconds";
+
     /** <code>windowstore.changelog.additional.retention.ms</code> */
     public static final String WINDOW_STORE_CHANGE_LOG_ADDITIONAL_RETENTION_MS_CONFIG = "windowstore.changelog.additional.retention.ms";
     public static final String WINDOW_STORE_CHANGE_LOG_ADDITIONAL_RETENTION_MS_DOC = "Added to a windows maintainMs to ensure data is not deleted from the log prematurely. Allows for clock drift. Default is 1 day";
@@ -247,6 +251,11 @@ public class StreamsConfig extends AbstractConfig {
                                         null,
                                         Importance.LOW,
                                         ROCKSDB_CONFIG_SETTER_CLASS_DOC)
+                                .define(ROCKSDB_TTL_SEC_CONFIG,
+                                        Type.INT,
+                                        null,
+                                        Importance.LOW,
+                                        ROCKSDB_TTL_SEC_DOC)
                                 .define(WINDOW_STORE_CHANGE_LOG_ADDITIONAL_RETENTION_MS_CONFIG,
                                         Type.LONG,
                                         24 * 60 * 60 * 1000,
@@ -321,16 +330,19 @@ public class StreamsConfig extends AbstractConfig {
      * @throws ConfigException
      */
     public Map<String, Object> getConsumerConfigs(StreamThread streamThread, String groupId, String clientId) throws ConfigException {
-        final Map<String, Object> consumerProps = getClientPropsWithPrefix(CONSUMER_PREFIX, ConsumerConfig.configNames());
+
+        final Map<String, Object> consumerProps = new HashMap<>(CONSUMER_DEFAULT_OVERRIDES);
+
+        final Map<String, Object> clientProvidedProps = getClientPropsWithPrefix(CONSUMER_PREFIX, ConsumerConfig.configNames());
 
         // disable auto commit and throw exception if there is user overridden values,
         // this is necessary for streams commit semantics
-        if (consumerProps.containsKey(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG)) {
+        if (clientProvidedProps.containsKey(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG)) {
             throw new ConfigException("Unexpected user-specified consumer config " + ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG
                     + ", as the streams client will always turn off auto committing.");
         }
 
-        consumerProps.putAll(CONSUMER_DEFAULT_OVERRIDES);
+        consumerProps.putAll(clientProvidedProps);
 
         // bootstrap.servers should be from StreamsConfig
         consumerProps.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, this.originals().get(BOOTSTRAP_SERVERS_CONFIG));
@@ -362,16 +374,18 @@ public class StreamsConfig extends AbstractConfig {
      * @throws ConfigException
      */
     public Map<String, Object> getRestoreConsumerConfigs(String clientId) throws ConfigException {
-        Map<String, Object> consumerProps = getClientPropsWithPrefix(CONSUMER_PREFIX, ConsumerConfig.configNames());
+        Map<String, Object> consumerProps = new HashMap<>(CONSUMER_DEFAULT_OVERRIDES);
+
+        final Map<String, Object> clientProvidedProps = getClientPropsWithPrefix(CONSUMER_PREFIX, ConsumerConfig.configNames());
 
         // disable auto commit and throw exception if there is user overridden values,
         // this is necessary for streams commit semantics
-        if (consumerProps.containsKey(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG)) {
+        if (clientProvidedProps.containsKey(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG)) {
             throw new ConfigException("Unexpected user-specified consumer config " + ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG
                     + ", as the streams client will always turn off auto committing.");
         }
 
-        consumerProps.putAll(CONSUMER_DEFAULT_OVERRIDES);
+        consumerProps.putAll(clientProvidedProps);
 
         // bootstrap.servers should be from StreamsConfig
         consumerProps.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, this.originals().get(BOOTSTRAP_SERVERS_CONFIG));
@@ -396,8 +410,8 @@ public class StreamsConfig extends AbstractConfig {
      */
     public Map<String, Object> getProducerConfigs(String clientId) {
         // generate producer configs from original properties and overridden maps
-        final Map<String, Object> props = getClientPropsWithPrefix(PRODUCER_PREFIX, ProducerConfig.configNames());
-        props.putAll(PRODUCER_DEFAULT_OVERRIDES);
+        final Map<String, Object> props = new HashMap<>(PRODUCER_DEFAULT_OVERRIDES);
+        props.putAll(getClientPropsWithPrefix(PRODUCER_PREFIX, ProducerConfig.configNames()));
 
         props.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, this.originals().get(BOOTSTRAP_SERVERS_CONFIG));
         // add client id with stream client id prefix
