@@ -293,8 +293,23 @@ public class StreamThread extends Thread {
     }
 
     private void shutdownTasksAndState(final boolean rethrowExceptions) {
-        // Commit first as there may be cached records that have not been flushed yet.
-        commitOffsets(rethrowExceptions);
+        try {
+            // Commit first as there may be cached records that have not been flushed yet.
+            commitOffsets(rethrowExceptions);
+        } catch (CommitFailedException e) {
+            log.info(String.format("%s Closing all tasks after %s: ", logPrefix, e.getClass().getSimpleName()), e);
+
+            // we must close all processors because of State store locks
+            // If the closeAllTasks() it's not called filesystem LOCKs are not released, which causes
+            // org.rocksdb.RocksDBException: IO error: lock .../LOCK: No locks available
+            // when next time we try to open RocksDB state stores
+            // Close all processors in topology order
+            closeAllTasks();
+            if (rethrowExceptions) {
+                throw e;
+            }
+        }
+
         // Close all processors in topology order
         closeAllTasks();
         // flush state
